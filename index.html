@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-sscale=1.0">
+    <title>NEON-CHEMISTRY EMPIRE v12.0</title>
+    <style>
+        :root {
+            --tox: #39ff14; --acid: #bc13fe; --deep-bg: #010501;
+            --glass: rgba(57, 255, 20, 0.08); --gold: #ffd700;
+            --danger: #ff073a; --blue: #00d4ff;
+        }
+
+        .theme-fire { --tox: #ff4500; --acid: #ff8c00; --glass: rgba(255, 69, 0, 0.1); }
+        .theme-ice { --tox: #00f2ff; --acid: #0077ff; --glass: rgba(0, 242, 255, 0.1); }
+
+        * { box-sizing: border-box; }
+        body, html {
+            margin: 0; padding: 0; background: var(--deep-bg);
+            color: #e0ffe0; font-family: 'Segoe UI', sans-serif;
+            overflow-x: hidden; scroll-behavior: smooth; transition: 0.5s;
+        }
+
+        canvas#bg { position: fixed; top: 0; left: 0; z-index: -1; opacity: 0.2; }
+
+        #splash {
+            position: fixed; inset: 0; background: black; z-index: 5000;
+            display: flex; flex-direction: column; justify-content: center; align-items: center; transition: 0.8s;
+        }
+
+        nav {
+            position: fixed; top: 0; width: 100%; height: 70px;
+            background: rgba(0,0,0,0.9); backdrop-filter: blur(15px);
+            border-bottom: 2px solid var(--tox); display: flex;
+            justify-content: center; align-items: center; z-index: 1000; gap: 5px;
+        }
+        nav button {
+            background: var(--glass); border: 1px solid var(--tox);
+            color: var(--tox); padding: 8px 12px; cursor: pointer;
+            font-weight: bold; border-radius: 5px; font-size: 0.75rem; text-transform: uppercase;
+        }
+        nav button.active-nav { background: var(--acid); border-color: var(--acid); color: white; }
+
+        section { display: none; padding: 90px 20px 40px; max-width: 1200px; margin: 0 auto; animation: fadeIn 0.5s; }
+        .active-sec { display: block !important; }
+
+        .lab-grid { display: grid; grid-template-columns: 1fr 1.5fr 1fr; gap: 20px; }
+        @media (max-width: 800px) { .lab-grid { grid-template-columns: 1fr; } }
+
+        .flask-visual {
+            width: 180px; height: 250px; border: 4px solid #fff;
+            margin: 20px auto; border-radius: 10% 10% 45% 45%;
+            position: relative; overflow: hidden; background: #111;
+            box-shadow: 0 0 30px var(--glass);
+        }
+        #liquid-fill { position: absolute; bottom: 0; width: 100%; background: var(--acid); height: 0%; transition: 0.5s; }
+
+        .main-tap-btn {
+            width: 180px; height: 180px; border-radius: 50%;
+            border: 6px solid var(--tox); background: transparent;
+            color: var(--tox); font-size: 1.2rem; font-weight: bold;
+            cursor: pointer; transition: 0.1s; box-shadow: 0 0 20px var(--tox);
+        }
+        .main-tap-btn:active { transform: scale(0.9); }
+
+        /* TABLES */
+        .mendeleev-wrapper { overflow-x: auto; background: #111; padding: 15px; border-radius: 10px; }
+        .mendeleev {
+            display: grid; grid-template-columns: repeat(18, 1fr); gap: 4px; min-width: 1000px;
+        }
+        .element {
+            aspect-ratio: 1; border: 1px solid #333; font-size: 0.7rem;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            cursor: pointer; transition: 0.2s; background: rgba(255,255,255,0.05);
+        }
+        .element:hover { background: var(--tox); color: black; z-index: 10; transform: scale(1.2); }
+
+        .sol-table-container { overflow-x: auto; margin-top: 30px; }
+        .sol-table { width: 100%; border-collapse: collapse; background: #111; font-size: 0.8rem; min-width: 800px; }
+        .sol-table th, .sol-table td { border: 1px solid #333; padding: 10px; text-align: center; }
+        .sol-table th { background: var(--glass); color: var(--tox); position: sticky; top: 0; }
+        .type-R { color: #00ff00; } .type-N { color: #ff4444; } .type-M { color: #ffff00; }
+
+        .
+[08.05.2026 21:23] Kolya: card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; }
+        .item-card { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); padding: 15px; border-radius: 12px; }
+        .buy-btn { width: 100%; padding: 10px; background: var(--tox); border: none; font-weight: bold; cursor: pointer; margin-top: 10px; border-radius: 5px; }
+
+        #explosion-overlay { position: fixed; inset: 0; background: white; opacity: 0; pointer-events: none; z-index: 6000; }
+    </style>
+</head>
+<body>
+
+    <canvas id="bg"></canvas>
+    <div id="explosion-overlay"></div>
+
+    <div id="splash">
+        <h1 style="color: var(--tox); letter-spacing: 10px;">NEON LAB v12</h1>
+        <p>Натисніть для ініціалізації звукових модулів</p>
+        <button style="padding: 15px 30px; cursor:pointer; background:var(--tox); border:none; font-weight:bold;" onclick="init()">ЗАПУСТИТИ СИСТЕМУ</button>
+    </div>
+
+    <nav id="navbar" style="display: none;">
+        <button onclick="to('lab')" id="btn-lab" class="active-nav">Лаб</button>
+        <button onclick="to('craft')">Крафт</button>
+        <button onclick="to('shop')">Магазин</button>
+        <button onclick="to('table')">Таблиці</button>
+        <button onclick="to('wiki')">База</button>
+    </nav>
+
+    <section id="sec-lab" class="active-sec">
+        <div style="display: flex; justify-content: space-between; margin-bottom: 20px;">
+            <div id="event-display" style="font-weight:bold;">СТАТУС: СТАБІЛЬНО</div>
+            <div>
+                Т: <input type="radio" name="th" checked onclick="setTheme('default')">
+                🔥: <input type="radio" name="th" onclick="setTheme('fire')">
+                ❄️: <input type="radio" name="th" onclick="setTheme('ice')">
+            </div>
+        </div>
+        <div style="background: rgba(0,0,0,0.5); padding: 15px; border-radius: 50px; text-align: center; border: 1px solid var(--acid); margin-bottom: 20px;">
+            🧪 МОЛЕКУЛИ: <span id="mol-count" style="font-size: 1.5rem;">0</span> / <span id="cap-display">1000</span>
+        </div>
+        <div class="lab-grid">
+            <div style="background: var(--glass); padding: 15px; border-radius: 15px; border: 1px solid var(--tox);">
+                <h3>РЕСУРСИ</h3>
+                <p>💧 Вода: <span id="res-water">0</span></p>
+                <p>🔥 Кислота: <span id="res-acid">0</span></p>
+                <p>✨ Пил: <span id="res-dust">0</span></p>
+            </div>
+            <div style="text-align: center;">
+                <div class="flask-visual"><div id="liquid-fill"></div></div>
+                <button id="main-btn" class="main-tap-btn" onclick="tap()">СИНТЕЗ</button>
+                <p id="fill-text">0%</p>
+            </div>
+            <div style="background: var(--glass); padding: 15px; border-radius: 15px; border: 1px solid var(--tox);">
+                <h3>ПАРАМЕТРИ</h3>
+                <p>🎓 Рівень: <span id="lvl">1</span></p>
+                <p>⚡ Клік: <span id="pwr">1</span></p>
+                <p>⚙️ Авто: <span id="auto">0</span>/с</p>
+            </div>
+        </div>
+    </section>
+
+    <section id="sec-table">
+        <h2>ХІМІЧНИЙ ДОВІДНИК</h2>
+        <h3>Періодична система (118 елементів)</h3>
+        <div class="mendeleev-wrapper">
+            <div class="mendeleev" id="periodic-table"></div>
+        </div>
+
+        <h3>Таблиця розчинності</h3>
+        <div class="sol-table-container">
+            <table class="sol-table" id="sol-table-body">
+                </table>
+        </div>
+    </section>
+
+    <section id="sec-shop"><div class="card-grid" id="shop-items"></div></section>
+    <section id="sec-wiki"><div class="card-grid" id="wiki-content"></div></section>
+    <section id="sec-craft">
+        <h2>КРАФТ</h2>
+        <div class="card-grid">
+            <div class="item-card"><h3>💧 ВОДА</h3><p>Ціна: 500</p><button class="buy-btn" onclick="craft('water', 500)">ЗРОБИТИ</button></div>
+[08.05.2026 21:23] Kolya: <div class="item-card"><h3>🔥 КИСЛОТА</h3><p>Ціна: 2000</p><button class="buy-btn" onclick="craft('acid', 2000)">ЗРОБИТИ</button></div>
+        </div>
+    </section>
+
+    <script>
+        // АУДІО ДВИГУН
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        function playSound(freq, type, duration) {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = type; osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+            gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+            osc.connect(gain); gain.connect(audioCtx.destination);
+            osc.start(); osc.stop(audioCtx.currentTime + duration);
+        }
+
+        let state = {
+            mol: 0, total: 0, pwr: 1, auto: 0, cap: 1000, lvl: 1, exp: 0,
+            water: 0, acid: 0, dust: 0, mult: 1,
+            items: [
+                {n: 'Пробірка', p: 50, v: 1, t: 'pwr'},
+                {n: 'Бак', p: 200, v: 1000, t: 'cap'},
+                {n: 'Мішалка', p: 500, v: 5, t: 'auto'}
+            ]
+        };
+
+        function init() {
+            audioCtx.resume(); playSound(440, 'sine', 0.2);
+            document.getElementById('splash').style.display = 'none';
+            document.getElementById('navbar').style.display = 'flex';
+            renderMendeleev(); renderSolubility(); renderShop(); update(); loops();
+        }
+
+        function tap() {
+            if(state.mol >= state.cap) { explode(); return; }
+            playSound(150 + Math.random()*100, 'sine', 0.1);
+            let gain = state.pwr * state.mult * (1 + state.water * 0.05);
+            state.mol += gain; state.total += gain; update();
+        }
+
+        function explode() {
+            playSound(100, 'sawtooth', 0.5);
+            document.getElementById('explosion-overlay').animate([{opacity: 1}, {opacity: 0}], 1000);
+            state.mol *= 0.8; state.dust += 5; update();
+        }
+
+        function craft(t, c) {
+            if(state.mol >= c) { state.mol -= c; state[t]++; playSound(600, 'triangle', 0.3); update(); }
+        }
+
+        function buy(i) {
+            let itm = state.items[i];
+            if(state.mol >= itm.p) {
+                state.mol -= itm.p;
+                if(itm.t==='pwr') state.pwr += itm.v;
+                if(itm.t==='cap') state.cap += itm.v;
+                if(itm.t==='auto') state.auto += itm.v;
+                itm.p = Math.floor(itm.p * 1.5);
+                playSound(800, 'sine', 0.2); renderShop(); update();
+            }
+        }
+
+        function renderMendeleev() {
+            const syms = ["H","He","Li","Be","B","C","N","O","F","Ne","Na","Mg","Al","Si","P","S","Cl","Ar","K","Ca","Sc","Ti","V","Cr","Mn","Fe","Co","Ni","Cu","Zn","Ga","Ge","As","Se","Br","Kr"];
+            let h = '';
+            for(let i=1; i<=118; i++) {
+                h += <div class="element" onclick="playSound(${200+i*5}, 'sine', 0.1)"><sub>${i}</sub><strong>${syms[i-1]||'?'}</strong></div>;
+            }
+            document.getElementById('periodic-table').innerHTML = h;
+        }
+
+        function renderSolubility() {
+            const cations = ["H+", "NH4+", "K+", "Na+", "Ag+", "Ba2+", "Ca2+", "Mg2+", "Zn2+", "Fe2+", "Fe3+", "Al3+"];
+            const anions = ["OH-", "Cl-", "Br-", "I-", "S2-", "SO3 2-", "SO4 2-", "NO3-", "PO4 3-", "CO3 2-", "SiO3 2-"];
+            const data = {
+                "OH-": ["-","Р","Р","Р","Н","Р","М","Н","Н","Н","Н","Н"],
+                "Cl-": ["Р","Р","Р","Р","Н","Р","Р","Р","Р","Р","Р","Р"]
+            };
+
+            let h = <thead><tr><th>Аніони \\ Катіони</th>${cations.map(c=>`<th>${c}</th>`).join('')}</tr></thead><tbody>;
+            anions.forEach(a => {
+                h += `<tr><th>${a}</th>${cations.map(c => {
+                    let res = (a==="NO3-"  c==="K+"  c==="Na+") ? "Р" : (data[a] ? data[a][cations.indexOf(c)] : "Р");
+                    return <td class="type-${res}">${res}</td>;
+                }).join('')}</tr>`;
+[08.05.2026 21:23] Kolya: });
+            document.getElementById('sol-table-body').innerHTML = h + "</tbody>";
+        }
+
+        function update() {
+            document.getElementById('mol-count').innerText = Math.floor(state.mol);
+            document.getElementById('cap-display').innerText = state.cap;
+            document.getElementById('res-water').innerText = state.water;
+            document.getElementById('res-acid').innerText = state.acid;
+            document.getElementById('res-dust').innerText = state.dust;
+            document.getElementById('pwr').innerText = state.pwr;
+            document.getElementById('auto').innerText = state.auto;
+            let p = (state.mol/state.cap)*100;
+            document.getElementById('liquid-fill').style.height = Math.min(p, 100) + "%";
+            document.getElementById('fill-text').innerText = Math.floor(p) + "%";
+        }
+
+        function renderShop() {
+            document.getElementById('shop-items').innerHTML = state.items.map((itm, i) => `
+                <div class="item-card"><h3>${itm.n}</h3><p>${itm.p} молек.</p><button class="buy-btn" onclick="buy(${i})">КУПИТИ</button></div>
+            `).join('');
+        }
+
+        function loops() {
+            setInterval(() => {
+                if(state.mol < state.cap && state.auto > 0) { state.mol += state.auto/10; update(); }
+            }, 100);
+            setInterval(() => {
+                if(Math.random() > 0.9) {
+                    state.mult = 2; playSound(1000, 'sine', 0.5);
+                    document.getElementById('event-display').innerText = "ПРОРИВ (x2)";
+                    setTimeout(() => { state.mult = 1; document.getElementById('event-display').innerText = "СТАБІЛЬНО"; }, 5000);
+                }
+            }, 20000);
+        }
+
+        function to(id) {
+            document.querySelectorAll('section').forEach(s => s.classList.remove('active-sec'));
+            document.getElementById('sec-'+id).classList.add('active-sec');
+        }
+        function setTheme(t) { document.body.className = "theme-"+t; }
+
+        // Background
+        const cv = document.getElementById('bg'); const cx = cv.getContext('2d');
+        cv.width=window.innerWidth; cv.height=window.innerHeight;
+        let pts = Array(40).fill().map(()=>({x:Math.random()*cv.width, y:Math.random()*cv.height, v:Math.random()*0.5+0.1}));
+        function draw() {
+            cx.clearRect(0,0,cv.width,cv.height); cx.fillStyle="#39ff14";
+            pts.forEach(p=>{ cx.beginPath(); cx.arc(p.x, p.y, 1.5, 0, Math.PI*2); cx.fill(); p.y-=p.v; if(p.y<0) p.y=cv.height; });
+            requestAnimationFrame(draw);
+        }
+        draw();
+    </script>
+</body>
+</html>
